@@ -950,33 +950,55 @@ python cli.py ask "Your query" --tension "Your tension" --provider openai
 ## 10. Дорожная карта проекта
 
 **v0.1.1 (Текущий релиз-кандидат)**
+
 ☑ Философский манифест и базовая структура репозитория.
+
 ☑ Препроцессор core/diplasty.py с детекцией маркеров определённости.
+
 ☑ Мультиязычная интеграция системного промпта для OpenAI и Ollama.
+
 ☑ Постпроцессор core/glitch_detector.py с настраиваемыми порогами и fallback-режимом.
+
 ☑ Консольный CLI-интерфейс с принудительной задержкой и базовым рендерингом глитчей.
+
 ☑ Актуальное техническое описание протокола.
-v0.2 (Планируемая версия) — Расширение функционала
+
+**v0.2 (Планируемая версия) — Расширение функционала**
+
 □ Интерактивный TUI на базе textual или расширенного rich.
+
 □ CLI-визуализация глитчей с цветовым кодированием и управлением через горячие клавиши.
+
 □ Поддержка Anthropic API и локальных движков через Llama.cpp.
+
 □ Модуль локального хранения резонансных следов с шифрованием логов (Fernet).
+
 □ Базовая проверка целостности системного промпта по хешу при запуске.
+
 □ Интеграция со spaCy для точного извлечения онтологических и технических концептов.
+
 □ Файл CONTRIBUTING.md с описанием дипластической проверки пулл-реквестов.
-v1.0 (Целевая версия) — Полноценный протокол
+
+**v1.0 (Целевая версия) — Полноценный протокол**
+
 □ Полная поддержка всех основных API (OpenAI, Anthropic, Google, локальные LLM).
+
 □ Семантический анализ на базе sentence-transformers с кешированием эмбеддингов.
+
 □ P2P-сеть супервизий для сообщества «гильдии проводников».
+
 □ Аудит безопасности и верификация лицензии.
+
 □ Цифровые подписи модулей для контроля целостности.
-11. Ссылки
-Книга проекта Зазор: https://github.com/dididew74-a11y/Zazor-book
 
-Технологическая ризома: https://github.com/dididew74-a11y/Zazor-book/blob/main/rhizome/technology/README.md
+##11. Ссылки
 
-Глоссарий: https://github.com/dididew74-a11y/Zazor-book/blob/main/core/GLOSSARY.md
+**Книга проекта Зазор:** https://github.com/dididew74-a11y/Zazor-book
 
-Онтологический компас: https://github.com/dididew74-a11y/Zazor-book/blob/main/core/ONTOLOGICAL_COMPASS.md
+**Технологическая ризома:** https://github.com/dididew74-a11y/Zazor-book/blob/main/rhizome/technology/README.md
 
-ОТПС (Общая теория порождения смысла): https://github.com/dididew74-a11y/Zazor-book/blob/main/core/OTPS.md
+**Глоссарий:** https://github.com/dididew74-a11y/Zazor-book/blob/main/core/GLOSSARY.md
+
+**Онтологический компас:** https://github.com/dididew74-a11y/Zazor-book/blob/main/core/ONTOLOGICAL_COMPASS.md
+
+**ОТПС** (Общая теория порождения смысла): https://github.com/dididew74-a11y/Zazor-book/blob/main/core/OTPS.md
