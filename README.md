@@ -32,6 +32,25 @@
 4. **Этика предела (`kill_switch`)**  
    Встроенный механизм прекращения диалога. Если сессия длится слишком долго, а индекс удержания напряжения (`Tension_Hold_Score`) падает, протокол принудительно прерывает соединение.
 
+   ```mermaid
+    flowchart TD
+    A[ПОЛЬЗОВАТЕЛЬ] --> B[СЛОЙ 1: Diplasty Preprocessor]
+    B -->|status = ready_for_llm| C[СЛОЙ 2: System Prompt Guard]
+    C -->|отправка в API| D[API LLM<br/>OpenAI / Ollama / Anthropic]
+    D -->|получение ответа| E[СЛОЙ 3: Glitch Detector]
+    E --> F[СЛОЙ 4: Kill Switch]
+    F --> G[ПОЛЬЗОВАТЕЛЬ<br/>получает ответ или прерывание]
+
+    B1[• Детекция маркеров определённости<br/>• Валидация Unsolved_Tension<br/>• Блокировка запроса] -.-> B
+    C1[• Инъекция онтологического промпта<br/>• Модификация параметров API] -.-> C
+    E1[• Детекция маркеров схлопывания<br/>• Анализ категориального сдвига<br/>• Генерация контр-вопроса] -.-> E
+    F1[• Мониторинг Tension_Hold_Score<br/>• Принудительное прерывание сессии] -.-> F
+
+    style A fill:#2d333b,stroke:#58a6ff,color:#c9d1d9
+    style G fill:#2d333b,stroke:#58a6ff,color:#c9d1d9
+    style D fill:#2d333b,stroke:#f0883e,color:#c9d1d9
+```
+
 ---
 
 ## Принцип неприсвоения
