@@ -1,4 +1,4 @@
-#  Zazor_Habitat/Zazor-protocol
+#  Zazor_Habitat/Zazor protocol
 
 **Протокол «Зазор» v0.1** — архитектура тишины и удержания неопределенности.
 
