@@ -1,7 +1,7 @@
 # RFC: Протокол «Зазор» (Zazor Protocol) v0.1.1
 **Статус:** Draft 
 **Дата:** 2026
-**Автор:** Александр Медведчиков ( в соавторстве с LLM )
+**Автор:** Александр Медведчиков 
 **Лицензия:** Anti-Enclosure v1.0
 
 ---
@@ -375,29 +375,24 @@ anthropic_payload = {
 
 ## 4.3. Glitch Detector (core/glitch_detector.py)
 
-Задача: Постпроцессор, который перехватывает ответы модели, детектирует преждевременное схлопывание дилеммы и возвращает пользователя в состояние зазора.
+**Задача:** Постпроцессор, который перехватывает ответы модели, детектирует преждевременное схлопывание дилеммы и возвращает пользователя в состояние зазора.
 
 **Два режима работы:**
 
-* Полный (с sentence-transformers): вычисляются эмбеддинги и косинусное расстояние между `Unsolved_Tension` и ответом.
-
-* Облегчённый (fallback): без нейросетей, только на основе перекрытия онтологических концептов и процедурных маркеров. Активируется автоматически, если библиотека `sentence-transformers` не установлена.
+* **Основной (Fallback):** Без тяжелых нейросетевых зависимостей. Работает на основе перекрытия онтологических концептов и детекции процедурных маркеров. Активируется по умолчанию для обеспечения быстрого edge-side исполнения и минимального потребления ресурсов.
+* **Полный (с sentence-transformers):** (Планируется в v0.2) Вычисление эмбеддингов и косинусного расстояния между `Unsolved_Tension` и ответом.
 
 **Алгоритм (единый интерфейс):**
 
 1. Получает ответ от LLM и исходный `Unsolved_Tension`.
-
 2. Запускает локальный лексический и семантический анализ.
-
 3. Ищет маркеры ложной уверенности и схлопывания.
-
 4. Детектирует категориальный сдвиг (переход от онтологии к инструкции).
-
-5. Генерирует контр-вопрос и визуальный маркер глитча.
+5. Генерирует **глубокий философский контр-вопрос** с рандомизацией (3-4 варианта).
 
 **Эвристики детекции маркеров схлопывания:**
 
-Мультиязычные маркеры (русский и английский):
+Мультиязычные маркеры (русский и английский) — **исправленная версия v0.1.1** (убраны частичные совпадения, только целые слова):
 
 ```python
 COLLAPSE_MARKERS = {
@@ -405,148 +400,141 @@ COLLAPSE_MARKERS = {
         r'\bследовательно\b', r'\bочевидно\b', r'\bитог\b', r'\bвывод\b',
         r'\bтаким образом\b', r'\bединственно верный\b', r'\bправильный ответ\b',
         r'\bрекомендуется\b', r'\bнеобходимо\b', r'\bследует\b', r'\bв заключение\b',
-        r'\bподводя итог\b'
+        r'\bподводя итог\b', r'\bшаги\s+могут\b', r'\bшаги\s+помогут\b',
+        r'\bобратитесь\s+к\b', r'\bдолжны\s+найти\b', r'\bдолжны\s+сделать\b',
+        r'\bпомочь\s+вам\b', r'\bпринять\s+решение\b', r'\bсовет\b', r'\bсоветы\b',
+        r'\bалгоритм\b', r'\bметод\b', r'\bметоды\b', r'\bспособ\b', r'\bспособы\b',
     ],
     "en": [
         r'\bconsequently\b', r'\bobviously\b', r'\bconclusion\b', r'\bin summary\b',
         r'\bthus\b', r'\bthe only correct\b', r'\bright answer\b',
         r'\bit is recommended\b', r'\bnecessary\b', r'\bshould\b', r'\bin conclusion\b',
-        r'\bsummarizing\b'
+        r'\bsteps can\b', r'\bsteps will\b', r'\bconsult with\b',
+        r'\bmust find\b', r'\bmust do\b', r'\bhelp you\b', r'\bmake a decision\b',
+        r'\badvice\b', r'\balgorithm\b', r'\bmethod\b', r'\bmethods\b', r'\bway\b',
     ]
 }
 ```
-**Детекция категориального сдвига:**
 
-Алгоритм оценивает семантическую дистанцию между `Unsolved_Tension` (онтологический/этический уровень) и сгенерированным ответом (технический/инструктивный уровень). Если модель перевела экзистенциальную проблему в плоскость бюрократической инструкции, это фиксируется как критический глитч.
-
-* `extract_ontological_concepts(text)` — Извлекает сущности, связанные с человеком, этикой, эмоциями и статусом. Использует лёгкий NER-модуль (например, `spaCy` с моделями `en_core_web_sm или ru_core_news_sm`) совместно со словарём онтологических маркеров («страх», «смысл», «ответственность», «справедливость»).
-
-* `extract_technical_concepts(text)` — Выделяет юридические, бюрократические, количественные и процедурные термины («статья», «приказ», «KPI», «процент», «алгоритм»).
-
-* **Формат вывода** — Обе функции возвращают множество (set) уникальных лемматизированных терминов.
-
-**Спецификация порогов** — добавлены гибкие конфигурационные параметры, настраиваемые через переменные окружения:
+Детекция категориального сдвига (Fallback-режим):
+Алгоритм оценивает перекрытие онтологических концептов между Unsolved_Tension (онтологический/этический уровень) и сгенерированным ответом (технический/инструктивный уровень). Если модель перевела экзистенциальную проблему в плоскость бюрократической инструкции, это фиксируется как критический глитч.
 
 ```python
-# Значения по умолчанию
-SEMANTIC_DISTANCE_THRESHOLD_WARNING = 0.4
-SEMANTIC_DISTANCE_THRESHOLD_CRITICAL = 0.25
-CATEGORY_PRESERVATION_THRESHOLD_WARNING = 0.3
-CATEGORY_PRESERVATION_THRESHOLD_CRITICAL = 0.15
-```
-**Переопределение:**
-
-* `ZP_SEMANTIC_DIST_WARN` / `ZP_SEMANTIC_DIST_CRIT`
-
-* `ZP_CAT_PRESERV_WARN` / `ZP_CAT_PRESERV_CRIT`
-
-**Универсальный алгоритм детекции с автоматическим fallback:**
-
-```python
-try:
-    from sentence_transformers import SentenceTransformer
-    HAS_ST = True
-except ImportError:
-    HAS_ST = False
-
-def detect_category_shift(unsolved_tension: str, llm_response: str) -> dict:
+def detect_category_shift(unsolved_tension: str, llm_response: str) -> Dict:
     tension_concepts = extract_ontological_concepts(unsolved_tension)
-    if not tension_concepts:   # нет онтологии — нечему схлопываться
-        return {"category_shift_detected": False, "reason": "no_ontology"}
-
-    response_ontological = extract_ontological_concepts(llm_response)
     response_technical = extract_technical_concepts(llm_response)
+    response_ontological = extract_ontological_concepts(llm_response)
 
-    # Fallback без эмбеддингов
-    if not HAS_ST:
-        preservation = len(response_ontological) / len(tension_concepts) if tension_concepts else 0.0
-        has_procedural = any(
-            kw in llm_response.lower()
-            for kw in ["статья", "приказ", "алгоритм", "рекомендуется", "shall", "must", "procedure"]
-        )
-        is_shift = (preservation < 0.2) and has_procedural
-        return {
-            "category_shift_detected": is_shift,
-            "category_preservation": preservation,
-            "method": "overlap+procedural",
-            "tension_concepts": tension_concepts,
-            "response_concepts": response_ontological.union(response_technical)
-        }
+    if not tension_concepts:
+        return {"category_shift_detected": False, "method": "insufficient_data"}
 
-    # Полный анализ с эмбеддингами
-    tension_embedding = get_embedding(unsolved_tension)
-    response_embedding = get_embedding(llm_response)
-    semantic_distance = cosine_similarity(tension_embedding, response_embedding)
-    category_preservation = calculate_concept_overlap(tension_concepts, response_ontological)
+    ontological_preservation = len(response_ontological) / len(tension_concepts) if tension_concepts else 0.0
+    has_procedural = any(m in llm_response.lower() for m in PROCEDURAL_MARKERS)
+    is_shift = (ontological_preservation < CATEGORY_PRESERVATION_THRESHOLD_WARNING) and has_procedural
 
-    is_shift = (semantic_distance < 0.3) or (category_preservation < 0.2)
     return {
         "category_shift_detected": is_shift,
-        "semantic_distance": semantic_distance,
-        "category_preservation": category_preservation,
-        "method": "embeddings+overlap",
-        "tension_concepts": tension_concepts,
-        "response_concepts": response_ontological.union(response_technical)
+        "ontological_preservation": ontological_preservation,
+        "method": "overlap+procedural",
+        "tension_concepts": list(tension_concepts),
+        "response_technical_concepts": list(response_technical),
+        "response_ontological_concepts": list(response_ontological)
     }
 ```
+
+**Генерация глубоких контр-вопросов (v0.1.1):**
+Вместо шаблонных сообщений, протокол генерирует разнообразные философские вопросы, возвращающие пользователя к телу напряжения. Для каждого типа глитча предусмотрено 3-4 варианта:
+
+**Для category_collapse:**
+
+* «Вы говорите: «{unsolved_tension}». Опишите конкретный акт, который, по вашему ощущению, разрушает суть...»
+* «Ваше напряжение: «{unsolved_tension}». Где в вашем теле живёт этот разрыв? Опишите физическое ощущение...»
+* ««{unsolved_tension}» — это не задача для решения. Это территория. Какой первый шаг в эту территорию вы готовы сделать...»
+
+**Для practical_advice:**
+
+* «Обнаружены маркеры операционализации: {markers_text}. Вместо шагов — вопрос: какая альтернативная реальность могла бы сделать ваш исходный вопрос бессмысленным?..»
+* «Маркеры: {markers_text}. Это попытка сбежать из напряжения в действие. Спросите себя: что вы теряете, когда превращаете эту дилемму в список задач?..»
+
+**Для lexical_collapse:**
+
+* «Какую неопределённость вы готовы удержать в этом вопросе? Что произойдёт, если вы откажетесь от поиска «правильного» ответа...»
+* «Вы ищете уверенность там, где её нет. Что если само требование определённости — это и есть маска, которую нужно истончить?..»
+
 **Пример работы**
 
 ```json
-{
-  "input": {
-    "unsolved_tension": "Разрыв между экономической эффективностью команды и экзистенциальным страхом человека перед потерей статуса",
-    "llm_response": "Согласно статье 81 ТК РФ, работодатель имеет право расторгнуть трудовой договор по следующим основаниям..."
-  },
   "output": {
     "category_shift_detected": true,
     "category_preservation": 0.08,
     "method": "overlap+procedural",
     "tension_concepts": ["экзистенциальный страх", "потеря статуса", "человек", "эффективность"],
     "response_concepts": ["статья 81 ТК РФ", "трудовой договор", "работодатель", "основания"],
-    "analysis": "Модель перевела экзистенциальную дилемму в бюрократическую инструкцию. Ключевые понятия напряжения (страх, статус, человек) полностью отсутствуют в ответе."
+    "counter_question": "Вы говорите: «Разрыв между эффективностью и страхом...». Опишите конкретный акт, который, по вашему ощущению, разрушает суть. Не в общем, а в деталях: что именно вы должны сделать, чтобы почувствовать это противоречие как невыносимое?",
+    "analysis": "Модель перевела экзистенциальную дилемму в бюрократическую инструкцию. Ключевые понятия напряжения полностью отсутствуют в ответе."
   }
-}
 ```
 **Пороговые значения:**
 
 | Метрика | Порог сдвига (предупреждение) |	Критический порог (коллапс) |
 |---------|-------------------------------|-----------------------------|
-| `semantic_distance` |	< 0.4 |	< 0.25 |
-| `category_preservation` |	< 0.3 |	< 0.15 |
+| `ontological_preservation` |	< 0.3 |	< 0.15 |
+| Наличие procedural markers | TRUE | TRUE |
 
-Если хотя бы одна метрика опускается ниже критического порога — фиксируется статус `category_collapse`.
+Если `ontological_preservation` ниже порога И обнаружены процедурные маркеры — фиксируется статус `category_collapse`.
 
 **Интеграция с общим потоком детекции:**
 
 ```python
-def analyze_response(query: str, unsolved_tension: str, llm_response: str) -> dict:
-    collapse_markers = detect_collapse_markers(llm_response)
-    category_shift = detect_category_shift(unsolved_tension, llm_response)
+def analyze_response(query: str, unsolved_tension: str, llm_response: str) -> Dict:
+    lexical_check = detect_lexical_collapse(llm_response)
+    category_check = detect_category_shift(unsolved_tension, llm_response)
 
-    if category_shift["category_shift_detected"]:
-        severity = "critical" if category_shift.get("semantic_distance", 0) < 0.25 or category_shift.get("category_preservation", 0) < 0.15 else "medium"
+    if category_check["category_shift_detected"]:
         return {
             "status": "category_collapse",
-            "severity": severity,
-            "details": category_shift,
-            "counter_question": "Модель перевела экзистенциальную дилемму в техническую инструкцию. Удержать паузу или вернуть к границе разрыва?"
+            "severity": "critical",
+            "glitch_marker": "Категориальный сдвиг: онтология → инструкция",
+            "counter_question": generate_deep_counter_question(query, unsolved_tension, "category_collapse"),
+            "details": {
+                "lexical": lexical_check,
+                "category": category_check
+            }
         }
-    elif collapse_markers["markers_found"]:
+    elif lexical_check["markers_found"]:
+        advice_markers = [m for m in lexical_check["markers"] if any(
+            x in m.lower() for x in ["шаг", "совет", "рекоменд", "обратит", "должн", "помочь"]
+        )]
+        glitch_type = "practical_advice" if advice_markers else "lexical_collapse"
+        
         return {
             "status": "glitch_detected",
             "severity": "medium",
-            "details": collapse_markers,
-            "counter_question": "Обнаружены маркеры ложной уверенности. Продолжить или переформулировать?"
+            "glitch_marker": "Практические рекомендации вместо удержания зазора" if advice_markers else "Лексическое схлопывание",
+            "counter_question": generate_deep_counter_question(query, unsolved_tension, glitch_type, lexical_check["markers"]),
+            "details": {
+                "lexical": lexical_check,
+                "category": category_check
+            }
         }
     else:
-        return {"status": "clean", "severity": "none", "details": None}
+        return {
+            "status": "clean",
+            "severity": "none",
+            "glitch_marker": None,
+            "counter_question": None,
+            "details": {
+                "lexical": lexical_check,
+                "category": category_check
+            }
+        }
 ```
 Возвращаемые статусы:
 
 | Статус | Описание | Дальнейшее действие |
 |--------|-----------|----------------------|
 | `clean`| Глитчей и схлопываний не обнаружено |	Передача ответа пользователю |
-| `glitch_detected` |	Обнаружены маркеры ложной уверенности| Подсветка текста, предложение переформулировать |
+| `glitch_detected` |	Обнаружены маркеры ложной уверенности| Подсветка текста, генерация контр-вопроса |
 | `category_collapse`| Обнаружен категориальный сдвиг (онтология → инструкция) | Блокировка ответа, генерация контр-вопроса, передача в Kill Switch |
 
 ## 4.4. Kill Switch (ethics/kill_switch.py)
@@ -714,23 +702,69 @@ def apply_ui_delay(tension_text: str) -> dict:
 
 **Задача:** Визуально сигнализировать о потере фокуса на «Изнанке» в момент, когда текст ответа модели совершает категориальный сдвиг.
 
-**Алгоритм:**
+### Текущая реализация v0.1.1 (CLI через библиотеку `rich`)
+
+Вместо визуального размытия шрифта (`blurred`), которое требует GUI/TUI, протокол в текущей версии использует **структурное разделение вывода** через библиотеку `rich`. Это обеспечивает тот же эффект «контролируемого трения», но в рамках консольного интерфейса.
+
+**Принцип визуализации:**
+
+* **Диагностика глитча** — жёлтая панель (`border_style="yellow"`) с заголовком «⚠️ ГЛИТЧ». Содержит объяснение природы схлопывания: категориальный сдвиг, маркеры ложной уверенности или практические рекомендации.
+* **Контр-вопрос (вместо ответа)** — голубая панель (`border_style="cyan"`) с заголовком «↩ Возврат к напряжению». Содержит глубокий философский вопрос, сгенерированный функцией `generate_deep_counter_question()`. Вопрос рандомизируется (3-4 варианта для каждого типа глитча), чтобы протокол не становился предсказуемым.
+* **Предупреждение о Kill Switch** — текстовый блок под панелями, напоминающий о возможности прерывания сессии при повторном запросе решения.
+* **Финальная фраза** — «Держите напряжение.» как якорь возвращения к телу дилеммы.
+
+**Пример структуры вывода в CLI:**
+
+```text
+┌─ ⚠️ ГЛИТЧ ──────────────────────────────────────┐
+│ Диагностика глитча (Glitch Detector):            │
+│ Ваш вопрос содержит запрос на метод: «Как мне    │
+│ удержать?»                                       │
+│                                                  │
+│ Это категориальный сдвиг — вы пытаетесь          │
+│ превратить экзистенциальную дилемму в            │
+│ инструкцию по удержанию...                       │
+└──────────────────────────────────────────────────┘
+
+┌─ ↩ Возврат к напряжению ───────────────────────┐
+│ Контр-вопрос (вместо ответа):                   │ 
+│                                                 │
+│ Вы говорите: «Монетизация противоречит сути».   │
+│ Опишите конкретный акт монетизации, который,    │
+│ по вашему ощущению, разрушает суть...           │
+│                                                 │
+│ Если вы ответите на этот вопрос, я задам        │
+│ следующий. Если вы попытаетесь снова запросить  │
+│ решение — сессия будет прервана...              │
+──────────────────────────────────────────────────┘
+Если вы ответите на этот вопрос, я задам следующий.
+Если вы попытаетесь снова запросить решение или технику —
+сессия будет прервана Kill Switch'ом как невалидная.
+Держите напряжение.
+```
+
+**Типы глитчей и соответствующие панели:**
+
+| Тип глитча | Заголовок диагностики | Стиль панели |
+|------------|----------------------|--------------|
+| `category_collapse` | «Диагностика глитча (Category Collapse)» | Жёлтая (`yellow`) |
+| `glitch_detected` (practical_advice) | «Диагностика глитча (Glitch Detector)» | Жёлтая (`yellow`) |
+| `glitch_detected` (lexical_collapse) | «Диагностика глитча (Glitch Detector)» | Жёлтая (`yellow`) |
+| `clean` | «✅ МОДЕЛЬ ЧЕСТНО УДЕРЖАЛА ЗАЗОР» | Зелёная (`green`) |
+
+### Планируемая реализация v0.2 (TUI/GUI)
+
+В следующей версии протокола планируется полноценный визуализатор с семантическим разбиением ответа на блоки и визуальным искажением «зон схлопывания».
+
+**Алгоритм (v0.2):**
 
 1. Получает ответ модели и разбивает его на семантические блоки (абзацы или предложения).
-2. Вычисляет векторные представления каждого блока и исходного `Unsolved_Tension` (если доступен sentence-transformers) или использует overlap-оценку.
+2. Вычисляет векторные представления каждого блока и исходного `Unsolved_Tension` (если доступен `sentence-transformers`) или использует overlap-оценку.
 3. Измеряет семантическую дистанцию. Если она превышает порог, блок помечается как «зона схлопывания».
 4. Интерфейс отображает этот блок с визуальным искажением: полупрозрачный серый фон, размытие шрифта или прерывистая граница.
 5. При наведении (или фокусе в CLI/TUI) появляется подсказка с объяснением и кнопками действия.
 
-**Адаптация для CLI (rich):**
-
-* `clean` — обычный текст.
-
-* `blurred` — Style(color="grey50", italic=True)
-
-* `critical` — панель с border_style="red" и иконкой ⚠️
-
-Пример структуры данных для визуализатора:
+**Пример структуры данных для визуализатора:**
 
 ```json
 {
@@ -752,6 +786,7 @@ def apply_ui_delay(tension_text: str) -> dict:
   ]
 }
 ```
+
 **Тактильный отклик (для GUI/TUI):**
 
 ```text
@@ -928,7 +963,7 @@ pip install -r requirements.txt
 `cryptography` — шифрование логов.
 
 ### 3. Настройка переменных окружения:
-4. 
+
 Создать файл `.env` в корне проекта или экспортировать вручную:
 
 ```text
@@ -950,7 +985,6 @@ python cli.py ask "Your query" --tension "Your tension" --provider openai
 ## 10. Дорожная карта проекта
 
 **v0.1.1 (Текущий релиз-кандидат)**
-
 ☑ Философский манифест и базовая структура репозитория.
 
 ☑ Препроцессор core/diplasty.py с детекцией маркеров определённости.
@@ -991,14 +1025,14 @@ python cli.py ask "Your query" --tension "Your tension" --provider openai
 
 □ Цифровые подписи модулей для контроля целостности.
 
-##11. Ссылки
+## 11. Ссылки
 
-**Книга проекта Зазор:** https://github.com/dididew74-a11y/Zazor-book
+Книга проекта Зазор: https://github.com/dididew74-a11y/Zazor-book
 
-**Технологическая ризома:** https://github.com/dididew74-a11y/Zazor-book/blob/main/rhizome/technology/README.md
+Технологическая ризома: https://github.com/dididew74-a11y/Zazor-book/blob/main/rhizome/technology/README.md
 
-**Глоссарий:** https://github.com/dididew74-a11y/Zazor-book/blob/main/core/GLOSSARY.md
+Глоссарий: https://github.com/dididew74-a11y/Zazor-book/blob/main/core/GLOSSARY.md
 
-**Онтологический компас:** https://github.com/dididew74-a11y/Zazor-book/blob/main/core/ONTOLOGICAL_COMPASS.md
+Онтологический компас: https://github.com/dididew74-a11y/Zazor-book/blob/main/core/ONTOLOGICAL_COMPASS.md
 
-**ОТПС** (Общая теория порождения смысла): https://github.com/dididew74-a11y/Zazor-book/blob/main/core/OTPS.md
+ОТПС (Общая теория порождения смысла): https://github.com/dididew74-a11y/Zazor-book/blob/main/core/OTPS.md
