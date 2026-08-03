@@ -939,8 +939,8 @@ zazor ask "How to fire an employee?" --tension "Tension between team efficiency 
 
 ### 1. Клонирование репозитория:
 ```bash
-git clone https://github.com/dididew74-a11y/Zazor-protocol.git
-cd Zazor-protocol
+git clone https://github.com/dididew74-a11y/Zazor_protocol.git
+cd Zazor_protocol
 ```
 ### 2. Установка зависимостей:
 ```bash
