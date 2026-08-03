@@ -49,8 +49,7 @@
     style A fill:#2d333b,stroke:#58a6ff,color:#c9d1d9
     style G fill:#2d333b,stroke:#58a6ff,color:#c9d1d9
     style D fill:#2d333b,stroke:#f0883e,color:#c9d1d9
-```
-
+   ```
 ---
 
 ## Принцип неприсвоения
